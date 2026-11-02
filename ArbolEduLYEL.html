@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ArbolEdu</title>
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--tx:#1d2433;--ac:#4f46e5;--bd:#dde2ee;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12151f;--card:#1c2130;--tx:#eef1f8;--ac:#8b85ff;--bd:#2f3649}}
+:root[data-theme="dark"]{--bg:#12151f;--card:#1c2130;--tx:#eef1f8;--ac:#8b85ff;--bd:#2f3649}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,sans-serif;padding-bottom:76px}
+header{padding:14px 16px;background:linear-gradient(135deg,#4f46e5,#9333ea);color:#fff}
+header h1{margin:0;font-size:20px}header small{opacity:.85}
+main{max-width:640px;margin:auto;padding:10px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:12px;margin-bottom:10px}
+h3{margin:0 0 6px;font-size:16px}
+.fila{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+input[type=text]{flex:1;min-width:0;padding:10px;border:1px solid var(--bd);border-radius:10px;font-size:16px;background:var(--bg);color:var(--tx)}
+button{padding:10px 12px;border:0;border-radius:10px;background:var(--ac);color:#fff;font-size:14px;transition:transform .12s}
+button:active{transform:scale(.93)}
+button.sec{background:transparent;color:var(--ac);border:1px solid var(--ac)}
+.msg{margin:4px 0 0;min-height:1.3em;font-size:13px}.err{color:#e03a3a;animation:shake .3s}.ok{color:#18a060}
+.lienzo{overflow-x:auto;text-align:center;min-height:60px}.vacio{opacity:.7}
+.arista{stroke:#8a93a8;stroke-width:2;transition:stroke .3s}
+.nodo{transform-box:fill-box;transform-origin:center;transition:transform .25s}
+.nodo rect{stroke:#0003;stroke-width:1.5}
+.nodo text{fill:#fff;font:700 13px system-ui;text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.vis rect{stroke:#ffb703;stroke-width:3}.arista.vis{stroke:#ffb703;stroke-width:4}
+.nodo.act{transform:scale(1.3)}.act rect{stroke:#ffb703;stroke-width:5}
+.oculto{opacity:0}.nuevo{animation:pop .5s}
+.res rect{stroke:#ffb703;stroke-width:4}.res{animation:lat .7s infinite alternate}
+#consola{height:150px;overflow:auto;font:12px monospace;background:#0b1020;color:#9cf09c;padding:8px;border-radius:8px}
+#salida{margin-top:6px;font:600 14px monospace;word-break:break-word}
+#mem,#niv{font:12px monospace;overflow-x:auto;white-space:nowrap}
+.cn{border:1px solid var(--bd);border-radius:12px;margin-bottom:8px;overflow:hidden}
+.cn>button{width:100%;text-align:left;background:var(--card);color:var(--tx);font-size:15px;border-radius:0}
+.cn .cu{display:none;padding:0 12px 10px}.cn.open .cu{display:block;animation:desl .3s}
+.cn.open>button{color:var(--ac);font-weight:700}
+nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav button{flex:1;background:none;color:var(--tx);border-radius:0;padding:12px 4px;font-size:13px}
+nav button.on{color:var(--ac);font-weight:700;box-shadow:inset 0 3px var(--ac)}
+.bien{color:#18a060;font-weight:700}.mal{color:#e03a3a;font-weight:700}
+@keyframes pop{0%{transform:scale(0)}70%{transform:scale(1.3)}100%{transform:scale(1)}}
+@keyframes lat{to{transform:scale(1.18)}}
+@keyframes desl{from{opacity:0;transform:translateY(-6px)}}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+</style></head><body>
+<header><h1>🌳 ArbolEdu</h1><small>Aprende árboles binarios practicando</small></header>
+<main>
+<!-- ============ MÓDULO 1: SIMULADOR ============ -->
+<section id="p-sim">
+ <div class="card">
+  <div class="fila"><input type="text" id="inp" placeholder="Número (-3, 4.5) o una letra" autocomplete="off" maxlength="14"><button id="bIns">Insertar</button></div>
+  <div class="fila"><button class="sec" id="bBus">🔍 Buscar</button><button class="sec" id="bEli">🗑 Eliminar</button><button class="sec" id="bLim">Limpiar</button></div>
+  <p id="msg" class="msg"></p>
+ </div>
+ <div class="card">
+  <div id="info" style="font-size:13px;margin-bottom:4px"></div>
+  <div id="lienzo" class="lienzo"></div>
+  <div class="fila"><button data-r="pre">Preorden</button><button data-r="in">Inorden</button><button data-r="post">Postorden</button><button data-r="niv">Por niveles</button></div>
+  <label style="font-size:13px">Velocidad (rápido ← → lento) <input type="range" id="vel" min="150" max="1500" value="700" style="width:100%"></label>
+ </div>
+ <div class="card"><h3>🖥 Consola (proceso interno)</h3><div id="consola"></div><div id="salida"></div></div>
+ <details class="card"><summary><b>🧠 Memoria interna: nodos enlazados</b></summary><p style="font-size:13px">Así guarda la computadora el árbol (cada nodo apunta a sus hijos):</p><div id="mem"></div><p style="font-size:13px">Lista por niveles (se arma con una cola de lista enlazada):</p><div id="niv"></div></details>
+</section>
+<!-- ============ MÓDULO 2: TEORÍA ============ -->
+<section id="p-teo" hidden>
+ <div class="card"><h3>📘 Teoría y glosario</h3><p style="font-size:13px;margin:0">Toca un concepto: se abre y se ilumina en un árbol de ejemplo (50, 30, 70, 20, 40, 60, 80 insertados con la misma clase ArbolBinario).</p></div>
+ <div id="conceptos"></div>
+</section>
+<!-- ============ MÓDULO 3: QUIZ ============ -->
+<section id="p-quiz" hidden><div class="card" id="qBox"></div></section>
+</main>
+<nav><button class="on" data-t="sim">🌳 Simulador</button><button data-t="teo">📘 Teoría</button><button data-t="quiz">🎯 Quiz</button></nav>
+
+<script>
+/* =====================================================
+   ArbolEdu - Motor lógico hecho desde cero (sin estructuras nativas de árbol).
+   Clases: Nodo, NodoLista, ListaEnlazada y ArbolBinario.
+   ===================================================== */
+
+// ---------- Nodo del árbol: guarda un dato y dos enlaces ----------
+class Nodo {
+  constructor(dato, color) {
+    this.id = ++Nodo.contador;   // identificador para dibujarlo
+    this.dato = dato;
+    this.izq = null;             // enlace al hijo izquierdo
+    this.der = null;             // enlace al hijo derecho
+    this.color = color;          // cada nodo tiene su propio color
+    this.x = 0; this.y = 0;      // posición en pantalla
+  }
+}
+Nodo.contador = 0;
+
+// ---------- Lista enlazada simple (la usamos para pasos, colas y salidas) ----------
+class NodoLista { constructor(valor) { this.valor = valor; this.sig = null; } }
+class ListaEnlazada {
+  constructor() { this.cabeza = null; this.cola = null; this.tam = 0; }
+  agregar(v) {                   // agrega al final
+    const n = new NodoLista(v);
+    if (this.cabeza === null) this.cabeza = this.cola = n;
+    else { this.cola.sig = n; this.cola = n; }
+    this.tam++;
+  }
+  quitarPrimero() {              // saca el primero (así funciona una cola)
+    if (this.cabeza === null) return null;
+    const v = this.cabeza.valor;
+    this.cabeza = this.cabeza.sig;
+    if (this.cabeza === null) this.cola = null;
+    this.tam--;
+    return v;
+  }
+  recorrer(fn) { let a = this.cabeza; while (a !== null) { fn(a.valor); a = a.sig; } }
+  aArreglo() { const r = []; this.recorrer(v => r.push(v)); return r; }
+}
+
+// ---------- Árbol binario ----------
+class ArbolBinario {
+  constructor() { this.limpiar(); }
+  limpiar() { this.raiz = null; this.tam = 0; this.tipo = null; this.caso = null; this.cont = 0; this.hallado = false; }
+
+  // Revisa las reglas de entrada y devuelve el valor ya normalizado
+  validar(t) {
+    if (t === '') return { msg: 'Escribe un valor: no puede estar vacío.' };
+    if (/\s/.test(t)) return { msg: 'No se permiten espacios en blanco.' };
+    let tipo;
+    if (/^-?\d+(\.\d+)?$/.test(t)) tipo = 'num';              // entero, negativo o decimal
+    else if (/^[A-Za-zÑñ]$/.test(t)) tipo = 'let';            // una sola letra (incluye Ñ)
+    else return { msg: 'Solo números (-3, 4.5) o UNA letra. Sin símbolos especiales.' };
+    if (this.tipo && this.tipo !== tipo) return { msg: 'No se pueden combinar letras con números en el mismo árbol.' };
+    let v = t, aviso = '';
+    if (tipo === 'let' && this.caso) {                        // unifica mayúsculas/minúsculas
+      v = this.caso === 'min' ? t.toLowerCase() : t.toUpperCase();
+      if (v !== t) aviso = 'se convirtió a ' + (this.caso === 'min' ? 'minúscula' : 'MAYÚSCULA');
+    }
+    return { ok: true, valor: v, aviso };
+  }
+
+  // Compara dos datos: negativo si a<b, 0 si son iguales, positivo si a>b
+  comparar(a, b) {
+    if (this.tipo === 'num') return parseFloat(a) - parseFloat(b);
+    return a.localeCompare(b, 'es');                           // 'es' pone la Ñ después de la N
+  }
+
+  siguienteColor() { return `hsl(${(this.cont++ * 137.5) % 360},65%,42%)`; }  // color distinto por nodo
+
+  // ----- INSERTAR (recursivo). Repetidos van a la derecha -----
+  insertar(v, pasos) {
+    if (!this.tipo) {
+      this.tipo = /^[A-Za-zÑñ]$/.test(v) ? 'let' : 'num';
+      if (this.tipo === 'let') this.caso = v === v.toLowerCase() ? 'min' : 'may';
+    }
+    const nuevo = new Nodo(v, this.siguienteColor());
+    this.raiz = this._ins(this.raiz, nuevo, pasos, 0);
+    this.tam++;
+    return nuevo;
+  }
+  _ins(n, nuevo, pasos, niv) {
+    if (n === null) {                                          // caso base: lugar libre
+      pasos.agregar({ nodo: nuevo, txt: `Lugar libre en el nivel ${niv}: se crea el nodo ${nuevo.dato}` });
+      return nuevo;
+    }
+    const c = this.comparar(nuevo.dato, n.dato);
+    if (c < 0) {
+      pasos.agregar({ nodo: n, txt: `${nuevo.dato} < ${n.dato} → va a la IZQUIERDA` });
+      n.izq = this._ins(n.izq, nuevo, pasos, niv + 1);
+    } else {
+      pasos.agregar({ nodo: n, txt: `${nuevo.dato} ${c === 0 ? '= (repetido)' : '>'} ${n.dato} → va a la DERECHA` });
+      n.der = this._ins(n.der, nuevo, pasos, niv + 1);
+    }
+    return n;
+  }
+
+  // ----- BUSCAR (recursivo) -----
+  buscar(v, pasos) { return this._bus(this.raiz, v, pasos); }
+  _bus(n, v, pasos) {
+    if (n === null) { pasos.agregar({ txt: `Llegó a null: ${v} NO existe` }); return false; }
+    const c = this.comparar(v, n.dato);
+    if (c === 0) { pasos.agregar({ nodo: n, txt: `${v} = ${n.dato} → ¡ENCONTRADO!` }); return true; }
+    pasos.agregar({ nodo: n, txt: `${v} ${c < 0 ? '< ' + n.dato + ' → IZQUIERDA' : '> ' + n.dato + ' → DERECHA'}` });
+    return this._bus(c < 0 ? n.izq : n.der, v, pasos);
+  }
+
+  // ----- ELIMINAR (recursivo): hoja, un hijo o dos hijos -----
+  eliminar(v, pasos) {
+    this.hallado = false;
+    this.raiz = this._eli(this.raiz, v, pasos);
+    if (this.hallado) { this.tam--; if (this.tam === 0) this.limpiar(); }
+    return this.hallado;
+  }
+  _eli(n, v, pasos) {
+    if (n === null) { pasos.agregar({ txt: `Llegó a null: ${v} NO existe` }); return null; }
+    const c = this.comparar(v, n.dato);
+    if (c < 0) { pasos.agregar({ nodo: n, txt: `${v} < ${n.dato} → IZQUIERDA` }); n.izq = this._eli(n.izq, v, pasos); return n; }
+    if (c > 0) { pasos.agregar({ nodo: n, txt: `${v} > ${n.dato} → DERECHA` }); n.der = this._eli(n.der, v, pasos); return n; }
+    this.hallado = true;
+    pasos.agregar({ nodo: n, txt: `Nodo ${n.dato} encontrado` });
+    if (n.izq === null) { pasos.agregar({ nodo: n, txt: 'Sin hijo izquierdo: lo reemplaza su hijo derecho (o null)' }); return n.der; }
+    if (n.der === null) { pasos.agregar({ nodo: n, txt: 'Sin hijo derecho: lo reemplaza su hijo izquierdo' }); return n.izq; }
+    let s = n.der; while (s.izq !== null) s = s.izq;          // sucesor = el menor de la derecha
+    pasos.agregar({ nodo: s, txt: `Tiene 2 hijos: toma el sucesor ${s.dato} (menor del subárbol derecho)` });
+    n.dato = s.dato;
+    n.der = this._eli(n.der, s.dato, pasos);                  // borra el sucesor original
+    return n;
+  }
+
+  // ----- RECORRIDOS (recursivos). ord: 'pre', 'in', 'post' o 'niv' -----
+  recorrer(ord, pasos) {
+    if (ord === 'niv') this.lista().recorrer(x => pasos.agregar({ nodo: x.n, txt: `Sale de la cola: ${x.n.dato} (nivel ${x.niv})`, sal: x.n.dato }));
+    else this._rec(this.raiz, ord, pasos);
+  }
+  _rec(n, ord, p) {
+    if (n === null) return;
+    const visita = () => p.agregar({ nodo: n, txt: `VISITA ${n.dato}`, sal: n.dato });
+    if (ord === 'pre') visita(); else p.agregar({ nodo: n, txt: `Llamada recursiva en ${n.dato}` });
+    if (n.izq) this._rec(n.izq, ord, p); else p.agregar({ nodo: n, txt: `Izquierda de ${n.dato} es null → regresa` });
+    if (ord === 'in') visita();
+    if (n.der) this._rec(n.der, ord, p); else p.agregar({ nodo: n, txt: `Derecha de ${n.dato} es null → regresa` });
+    if (ord === 'post') visita();
+  }
+  secuencia(ord) {                                             // solo la salida, como arreglo
+    const p = new ListaEnlazada(), s = [];
+    this.recorrer(ord, p);
+    p.recorrer(x => { if (x.sal !== undefined) s.push(x.sal); });
+    return s;
+  }
+
+  // Recorrido por niveles con una COLA (lista enlazada). Devuelve nodo, nivel, padre y rama
+  lista() {
+    const res = new ListaEnlazada(), q = new ListaEnlazada();
+    if (this.raiz) q.agregar({ n: this.raiz, niv: 0, p: null, rama: '' });
+    while (q.tam > 0) {
+      const x = q.quitarPrimero();
+      res.agregar(x);
+      if (x.n.izq) q.agregar({ n: x.n.izq, niv: x.niv + 1, p: x.n, rama: x.rama || 'I' });
+      if (x.n.der) q.agregar({ n: x.n.der, niv: x.niv + 1, p: x.n, rama: x.rama || 'D' });
+    }
+    return res;
+  }
+  // Altura = nivel más profundo (árbol vacío = -1). Recursiva.
+  altura(n = this.raiz) { return n === null ? -1 : 1 + Math.max(this.altura(n.izq), this.altura(n.der)); }
+
+  // ----- MOTOR GRÁFICO: dibuja el árbol en SVG con nuestras propias clases -----
+  dibujar(oculto) {
+    if (!this.raiz) return '<p class="vacio">🌱 El árbol está vacío. ¡Inserta un valor!</p>';
+    this.ancho = this._maxLen(this.raiz) * 8 + 40;
+    this.cx = 0; this._pos(this.raiz, 0);
+    const W = Math.max(this.cx * this.ancho + 10, 280), H = (this.altura() + 1) * 70 + 20;
+    this.sl = ''; this.sc = ''; this._svg(this.raiz, null, oculto);
+    return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${this.sl}${this.sc}</svg>`;
+  }
+  _maxLen(n) { return n === null ? 0 : Math.max(String(n.dato).length, this._maxLen(n.izq), this._maxLen(n.der)); }
+  _pos(n, d) {                                                 // x por orden inorden, y por nivel
+    if (n === null) return;
+    this._pos(n.izq, d + 1);
+    n.x = this.cx++ * this.ancho + this.ancho / 2; n.y = d * 70 + 30;
+    this._pos(n.der, d + 1);
+  }
+  _svg(n, p, oc) {
+    if (n === null) return;
+    const h = n === oc ? ' oculto' : '', w = String(n.dato).length * 8 + 20;
+    if (p) this.sl += `<line id="e${n.id}" class="arista${h}" x1="${p.x}" y1="${p.y}" x2="${n.x}" y2="${n.y}"/>`;
+    this.sc += `<g id="n${n.id}" class="nodo${h}"><rect x="${n.x - w / 2}" y="${n.y - 15}" width="${w}" height="30" rx="15" fill="${n.color}"/><text x="${n.x}" y="${n.y}">${n.dato}</text></g>`;
+    this._svg(n.izq, n, oc); this._svg(n.der, n, oc);
+  }
+}
+
+/* =====================================================
+   INTERFAZ (conecta botones con el motor)
+   ===================================================== */
+const $ = id => document.getElementById(id);
+const arbol = new ArbolBinario();
+let token = 0, ocupado = false;
+
+function aviso(t, ok) { const m = $('msg'); m.textContent = t; m.className = 'msg ' + (ok ? 'ok' : 'err'); }
+function marcar(n, c, raiz) { ['n', 'e'].forEach(p => { const e = (raiz || document).querySelector('#' + p + n.id); if (e) e.classList.add(c); }); }
+
+function refrescar(oculto) {
+  $('lienzo').innerHTML = arbol.dibujar(oculto);
+  let m = '', ln = [];
+  arbol.lista().recorrer(x => {
+    m += `<div>Nodo#${x.n.id} [${x.n.dato}] → izq: ${x.n.izq ? '#' + x.n.izq.id : 'null'} | der: ${x.n.der ? '#' + x.n.der.id : 'null'}</div>`;
+    (ln[x.niv] = ln[x.niv] || []).push(x.n.dato);
+  });
+  $('mem').innerHTML = m || 'raiz = null (sin nodos)';
+  $('niv').innerHTML = ln.map((a, i) => `<div>Nivel ${i}: ${a.join(' , ')}</div>`).join('') || '—';
+  $('info').textContent = `Nodos: ${arbol.tam} · Altura: ${arbol.altura()} · Raíz: ${arbol.raiz ? arbol.raiz.dato : '—'}`;
+}
+
+// Reproduce los pasos (lista enlazada) uno por uno con animación
+function reproducir(pasos, fin) {
+  const arr = pasos.aArreglo(), mi = ++token, sal = [];
+  let i = 0; ocupado = true;
+  $('consola').innerHTML = ''; $('salida').textContent = '';
+  (function sig() {
+    if (mi !== token) return;
+    document.querySelectorAll('.act').forEach(e => e.classList.remove('act'));
+    if (i >= arr.length) { ocupado = false; if (fin) fin(); return; }
+    const p = arr[i++];
+    if (p.nodo) { marcar(p.nodo, 'act'); marcar(p.nodo, 'vis'); }
+    const c = $('consola'); c.innerHTML += `<div>${i}. ${p.txt}</div>`; c.scrollTop = c.scrollHeight;
+    if (p.sal !== undefined) { sal.push(p.sal); $('salida').textContent = 'Salida: ' + sal.join(' , '); }
+    setTimeout(sig, $('vel').value);
+  })();
+}
+
+function leer() {                                              // valida lo escrito
+  if (ocupado) { aviso('Espera a que termine la animación.'); return null; }
+  const v = arbol.validar($('inp').value);
+  if (!v.ok) { aviso(v.msg); return null; }
+  return v;
+}
+$('bIns').onclick = () => {
+  const v = leer(); if (!v) return;
+  const pasos = new ListaEnlazada(), nuevo = arbol.insertar(v.valor, pasos);
+  refrescar(nuevo);                                            // el nodo nuevo aparece al final
+  aviso(`Insertando ${v.valor}` + (v.aviso ? ` (${v.aviso})` : ''), true);
+  $('inp').value = '';
+  reproducir(pasos, () => { refrescar(); const g = $('n' + nuevo.id); if (g) g.classList.add('nuevo'); });
+};
+$('bBus').onclick = () => {
+  const v = leer(); if (!v) return;
+  if (!arbol.raiz) return aviso('El árbol está vacío.');
+  const pasos = new ListaEnlazada(), r = arbol.buscar(v.valor, pasos);
+  aviso(r ? `Buscando ${v.valor}…` : `Buscando ${v.valor} (no está)…`, true);
+  reproducir(pasos);
+};
+$('bEli').onclick = () => {
+  const v = leer(); if (!v) return;
+  if (!arbol.raiz) return aviso('El árbol está vacío.');
+  const pasos = new ListaEnlazada();
+  arbol.eliminar(v.valor, pasos);                              // el dibujo viejo se queda durante la animación
+  aviso(`Eliminando ${v.valor}…`, true); $('inp').value = '';
+  reproducir(pasos, () => refrescar());
+};
+$('bLim').onclick = () => { token++; ocupado = false; arbol.limpiar(); refrescar(); $('consola').innerHTML = ''; $('salida').textContent = ''; aviso('Árbol vacío. Ya puedes elegir letras o números.', true); };
+$('inp').onkeydown = e => { if (e.key === 'Enter') $('bIns').click(); };
+document.querySelectorAll('[data-r]').forEach(b => b.onclick = () => {
+  if (ocupado) return aviso('Espera a que termine la animación.');
+  if (!arbol.raiz) return aviso('El árbol está vacío.');
+  const pasos = new ListaEnlazada(); arbol.recorrer(b.dataset.r, pasos);
+  aviso('Recorrido ' + b.textContent, true); reproducir(pasos);
+});
+refrescar();
+
+/* ---------- Pestañas ---------- */
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
+  ['sim', 'teo', 'quiz'].forEach(t => $('p-' + t).hidden = t !== b.dataset.t);
+});
+
+/* =====================================================
+   MÓDULO 2: TEORÍA (con árbol de ejemplo y micro-animaciones)
+   ===================================================== */
+const demo = new ArbolBinario();
+['50', '30', '70', '20', '40', '60', '80'].forEach(v => demo.insertar(v, new ListaEnlazada()));
+const CONCEPTOS = [
+  ['🌳 Nodo', 'Cada “cajita” del árbol. Guarda un dato y dos enlaces: uno al hijo izquierdo y otro al derecho (es nuestra clase Nodo).', () => true],
+  ['👑 Nodo raíz', 'El primer nodo, el de arriba. No tiene padre. Desde él se llega a todos los demás.', x => x.niv === 0],
+  ['👨‍👧 Padre', 'Nodo que tiene al menos un hijo debajo de él.', x => x.n.izq || x.n.der],
+  ['🧒 Hijos', 'Nodos conectados debajo de otro. En un árbol binario cada nodo tiene máximo 2: izquierdo y derecho.', x => x.p],
+  ['👫 Hermanos', 'Nodos que tienen el mismo padre.', x => x.p && x.p.izq && x.p.der],
+  ['🍃 Hojas', 'Nodos sin hijos (los que están hasta abajo).', x => !x.n.izq && !x.n.der],
+  ['🌿 Subárbol', 'Un nodo junto con todos sus descendientes. Aquí se ilumina el subárbol izquierdo de la raíz.', x => x.rama === 'I'],
+  ['📶 Nivel', 'Distancia desde la raíz: la raíz es el nivel 0, sus hijos el nivel 1, y así. Aquí se iluminan los del nivel 2.', x => x.niv === 2],
+  ['📏 Altura', 'El nivel más profundo del árbol (aquí es 2). Un árbol vacío tiene altura -1.', x => x.niv === demo.altura()],
+  ['🔢 Grado', 'Cantidad de hijos de un nodo (0, 1 o 2). Aquí se iluminan los nodos de grado 2.', x => x.n.izq && x.n.der],
+  ['🔎 Búsqueda', 'Se compara con cada nodo: si el valor es menor se va a la izquierda; si es mayor, a la derecha. Si llega a null, no existe.'],
+  ['➕ Inserción', 'Se busca el camino igual que en la búsqueda y el nodo nuevo se pega en el primer lugar libre. Los repetidos se van a la derecha.'],
+  ['🗑 Eliminación', 'Hay 3 casos: (1) hoja, se quita; (2) un hijo, el hijo ocupa su lugar; (3) dos hijos, se usa el sucesor (menor del lado derecho).'],
+  ['⬅ Preorden', 'Raíz → izquierda → derecha.', null, 'pre'],
+  ['⬆ Inorden', 'Izquierda → raíz → derecha. En un árbol de búsqueda sale ordenado.', null, 'in'],
+  ['➡ Postorden', 'Izquierda → derecha → raíz.', null, 'post'],
+  ['📚 Por niveles', 'De arriba hacia abajo y de izquierda a derecha, usando una cola (lista enlazada).', null, 'niv'],
+  ['🔁 Recursividad', 'Una función que se llama a sí misma con un problema más pequeño (el subárbol). Se detiene en el caso base: nodo null.'],
+  ['🔗 Lista enlazada', 'Nodos unidos por enlaces, uno detrás de otro. En ArbolEdu la usamos para los pasos, las salidas y la cola por niveles.']
+];
+function armarTeoria() {
+  const cont = $('conceptos');
+  CONCEPTOS.forEach(([titulo, def, f, ord]) => {
+    const d = document.createElement('div'); d.className = 'cn';
+    d.innerHTML = `<button>${titulo}</button><div class="cu"><p>${def}</p><div class="lienzo"></div><p class="rs" style="font:600 13px monospace"></p></div>`;
+    d.firstChild.onclick = () => {
+      const abrir = !d.classList.contains('open');
+      document.querySelectorAll('.cn.open').forEach(o => { o.classList.remove('open'); o.querySelector('.lienzo').innerHTML = ''; });
+      if (!abrir) return;
+      d.classList.add('open');
+      const lz = d.querySelector('.lienzo'); lz.innerHTML = demo.dibujar();
+      if (f) demo.lista().recorrer(x => { if (f(x)) marcar(x.n, 'res', lz); });
+      if (ord) d.querySelector('.rs').textContent = 'En el ejemplo: ' + demo.secuencia(ord).join(' , ');
+    };
+    cont.appendChild(d);
+  });
+}
+armarTeoria();
+
+/* =====================================================
+   MÓDULO 3: QUIZ (árboles aleatorios, respuesta obligatoria)
+   ===================================================== */
+const KINDS = ['pre', 'in', 'post', 'niv', 'raiz', 'alt', 'hojas', 'nivel', 'padre', 'hijos', 'herm', 'total', 'sub', 'grado', 'dir'];
+let Q = {};
+function mezclar(a) { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function arbolAleatorio() {                                    // árbol nuevo cada pregunta, armado con nuestra clase
+  const t = new ArbolBinario(), n = 5 + Math.floor(Math.random() * 3), letras = Math.random() < 0.4, usados = [];
+  while (usados.length < n) {
+    const v = letras ? 'ABCDEFGHIJKLMNÑOPQRSTUVWXYZ'[Math.floor(Math.random() * 27)] : String(1 + Math.floor(Math.random() * 99));
+    if (!usados.includes(v)) { usados.push(v); t.insertar(v, new ListaEnlazada()); }
+  }
+  return t;
+}
+function crearPregunta(k, t) {                                 // devuelve [texto, respuesta, explicación]
+  const L = t.lista().aArreglo(), rz = t.raiz.dato, hn = n => (n.izq ? 1 : 0) + (n.der ? 1 : 0);
+  const otros = L.filter(x => x.p), e = otros[Math.floor(Math.random() * otros.length)], X = e.n.dato;
+  const sep = ' (separa con espacios)';
+  return {
+    pre: ['Escribe el recorrido PREORDEN' + sep, t.secuencia('pre'), 'Preorden: raíz, izquierda, derecha.'],
+    in: ['Escribe el recorrido INORDEN' + sep, t.secuencia('in'), 'Inorden: izquierda, raíz, derecha.'],
+    post: ['Escribe el recorrido POSTORDEN' + sep, t.secuencia('post'), 'Postorden: izquierda, derecha, raíz.'],
+    niv: ['Escribe el recorrido POR NIVELES' + sep, t.secuencia('niv'), 'De arriba abajo y de izquierda a derecha.'],
+    raiz: ['¿Cuál es el nodo raíz?', [rz], 'La raíz es el nodo de arriba, sin padre.'],
+    alt: ['¿Cuál es la altura del árbol? (la raíz está en el nivel 0)', [t.altura()], 'La altura es el nivel más profundo.'],
+    hojas: ['¿Cuántas hojas tiene el árbol?', [L.filter(x => !x.n.izq && !x.n.der).length], 'Hojas: nodos sin hijos.'],
+    nivel: [`¿En qué nivel está el nodo ${X}?`, [e.niv], 'Nivel = pasos desde la raíz (la raíz es 0).'],
+    padre: [`¿Quién es el padre del nodo ${X}?`, [e.p.dato], 'El padre es el nodo que está justo arriba.'],
+    hijos: [`¿Cuántos hijos tiene el nodo ${X}?`, [hn(e.n)], 'Cuenta las conexiones hacia abajo.'],
+    herm: [`¿Cuál es el hermano del nodo ${X}? (si no tiene, escribe 0)`, [e.p.izq === e.n ? (e.p.der ? e.p.der.dato : 0) : (e.p.izq ? e.p.izq.dato : 0)], 'Hermanos: hijos del mismo padre.'],
+    total: ['¿Cuántos nodos tiene el árbol?', [L.length], 'Cuenta todos los círculos.'],
+    sub: ['¿Cuántos nodos tiene el subárbol izquierdo de la raíz? (si no tiene, escribe 0)', [L.filter(x => x.rama === 'I').length], 'Cuenta el hijo izquierdo de la raíz y todos sus descendientes.'],
+    grado: ['¿Cuál es el grado del árbol? (el mayor número de hijos que tiene un nodo)', [Math.max(...L.map(x => hn(x.n)))], 'Grado: máximo de hijos de un nodo.'],
+    dir: [`Si buscas el ${X} empezando en la raíz, ¿el primer paso es Izquierda o Derecha? (escribe I o D)`, [t.comparar(X, rz) < 0 ? 'I' : 'D'], 'Menor → izquierda; mayor → derecha.']
+  }[k];
+}
+const norm1 = x => /^-?\d+(\.\d+)?$/.test(String(x)) ? String(+x) : String(x).toUpperCase();
+function normalizar(s, letra, esp) {
+  let tk = s.trim().split(/[\s,;]+/).filter(Boolean);
+  if (letra && tk.length === 1 && esp.length > 1) tk = [...tk[0]];   // permite “ABC” sin espacios
+  return tk.map(norm1);
+}
+function inicioQuiz() {
+  $('qBox').innerHTML = `<h3>🎯 Evaluador de competencias</h3><p>${KINDS.length} preguntas, cada una con un árbol aleatorio nuevo. Cubre toda la teoría y los recorridos. <b>Cada respuesta es obligatoria.</b></p><button id="qIni">Comenzar</button>`;
+  $('qIni').onclick = () => { Q = { ks: mezclar(KINDS), i: 0, ok: 0, res: [] }; pregunta(); };
+}
+function pregunta() {
+  const t = arbolAleatorio(), p = crearPregunta(Q.ks[Q.i], t); Q.t = t; Q.p = p;
+  $('qBox').innerHTML = `<h3>Pregunta ${Q.i + 1} de ${Q.ks.length}</h3><div class="lienzo">${t.dibujar()}</div><p><b>${p[0]}</b></p><div class="fila"><input type="text" id="qIn" placeholder="Tu respuesta (obligatoria)" autocomplete="off"><button id="qOk">Responder</button></div><p id="qMsg" class="msg"></p>`;
+  $('qOk').onclick = responder;
+  $('qIn').onkeydown = e => { if (e.key === 'Enter') responder(); };
+}
+function responder() {
+  const [txt, esp, ex] = Q.p, mine = normalizar($('qIn').value, Q.t.tipo === 'let', esp);
+  if (mine.length === 0) { $('qMsg').className = 'msg err'; $('qMsg').textContent = 'La respuesta es obligatoria: escribe algo para continuar.'; return; }
+  const bien = mine.join('|') === esp.map(norm1).join('|');
+  if (bien) Q.ok++;
+  Q.res.push({ txt, bien, resp: esp.join(' , ') });
+  $('qIn').disabled = true; $('qOk').remove();
+  const ult = Q.i === Q.ks.length - 1;
+  $('qMsg').className = 'msg'; $('qMsg').innerHTML = (bien ? '<span class="bien">✅ ¡Correcto!</span>' : `<span class="mal">❌ Incorrecto.</span> Respuesta: <b>${esp.join(' , ')}</b>`) + `<br>${ex}<div class="fila"><button id="qSig">${ult ? 'Ver calificación' : 'Siguiente'}</button></div>`;
+  $('qSig').onclick = () => { Q.i++; ult ? fin() : pregunta(); };
+}
+function fin() {
+  const nota = Math.round(Q.ok / Q.ks.length * 100);
+  $('qBox').innerHTML = `<h3>🏁 Calificación final</h3><p style="font-size:34px;margin:4px 0" class="${nota >= 70 ? 'bien' : 'mal'}">${nota} / 100</p><p>${Q.ok} de ${Q.ks.length} correctas. ${nota >= 70 ? '¡Muy bien!' : 'Repasa la teoría y vuelve a intentar.'}</p>` +
+    Q.res.map((r, i) => `<div style="font-size:13px">${r.bien ? '✅' : '❌'} ${i + 1}. ${r.txt} → <b>${r.resp}</b></div>`).join('') + '<div class="fila"><button id="qOtra">Intentar de nuevo</button></div>';
+  $('qOtra').onclick = inicioQuiz;
+}
+inicioQuiz();
+</script></body></html>
